@@ -251,14 +251,20 @@ Hexboard.prototype.draw = function(t) {
   var top = 0;
   var bottom = this.map.height - 1;
 
+  var now = new Date().getTime();
+
   for (var y = top; y <= bottom; ++y) {
     for (var x = left; x <= right; ++x) {
       var o = this.originOf({ x: x, y: y });
+      var cell = this.cell[x][y];
 
-      _c.fillStyle = this.cell[x][y].color || colors[x % 2 + (y % 2) * 2];
+      _c.fillStyle = colors[x % 2 + (y % 2) * 2];
 
       if (active && active.x == x && active.y == y) {
         _c.fillStyle = '#7F7F7F';
+      }
+      else if (cell.when && now < cell.when) {
+        _c.fillStyle = cell.color;
       }
 
       _c.save();
@@ -294,10 +300,13 @@ Hexboard.prototype.draw = function(t) {
 }
 
 Hexboard.prototype.click = function(x, y, ev) {
-  var cell = this.cellOf({ x: x - this.origin.x, y: y - this.origin.y });
+  var coords = this.cellOf({ x: x - this.origin.x, y: y - this.origin.y });
 
-  if (cell && cell.x >= 0 && cell.y >= 0 && cell.x < this.map.width && cell.y < this.map.height) {
-    this.cell[cell.x][cell.y].color = '#666666';
+  if (coords && coords.x >= 0 && coords.y >= 0 && coords.x < this.map.width && coords.y < this.map.height) {
+    var cell = this.cell[coords.x][coords.y]
+
+    cell.color = '#666666';
+    cell.when = new Date().getTime() + 5000;
   }
 }
 
