@@ -91,57 +91,113 @@ var rs = Math.sqrt(3);
 var rh = rs / 2;
 var rw = 0.5;
 
-Hexboard.prototype.originOf = function(x, y) {
+Hexboard.prototype.gridToPixels = function(p) {
   return {
-    x: (3 * x) * rw,
-    y: (2 * y + (x % 2)) * rh
+    x: Math.floor(p.x * rw * this.cellSize),
+    y: Math.floor(p.y * rh * this.cellSize)
   };
 }
 
-Hexboard.prototype.cellOf = function(x, y) {
-  var gx = (x / this.cellSize) / rw;
-  var gy = (y / this.cellSize) / rh;
-
-  var a = {
-    x: Math.floor((gx + 2) / 4),
-    y: Math.floor((gy + 1) / 2)
+Hexboard.prototype.pixelsToGrid = function(p) {
+  return {
+    x: p.x / rw / this.cellSize,
+    y: p.y / rh / this.cellSize
   };
+}
 
-  var b = {
-    x: Math.floor((gx + 3) / 4),
-    y: Math.floor(gy / 2)
-  };
+Hexboard.prototype.originOf = function(p) {
+  return this.gridToPixels({
+    x: (3 * p.x),
+    y: (2 * p.y + (p.x % 2))
+  });
+}
 
-  var c = {
-    x: Math.floor((gx + 2) / 3),
-    y: Math.floor((gy + 1) / 2)
-  };
+Hexboard.prototype.gridDimensions = function(p) {
+  var grid = this.pixelsToGrid(p);
+  var pixel = this.gridToPixels({
+    x: Math.floor(grid.x),
+    y: Math.floor(grid.y)
+  });
 
-  switch (Math.floor(gx) % 6) {
-    case 0:
-      return a;
-    case 2:
-    case 3:
-      return b;
-    case 5:
-      return c;
-    /*
-    case 1:
-      switch (Math.floor(gy)) {
-        case 0:
-          return (gx % 1 > gy % 1) ? a : b;
-        case 1:
-          return (1 - gx % 1 < gy % 1) ? a : b;
-      }
-    case 4:
-      switch (Math.floor(gy)) {
-        case 0:
-          return (1 - gx % 1 < gy % 1) ? a : b;
-        case 1:
-          return (gx % 1 > gy % 1) ? a : b;
-      }
-      */
+  pixel.w = rw * this.cellSize;
+  pixel.h = rh * this.cellSize;
+
+  return pixel;
+}
+
+Hexboard.prototype.cellOf = function(p) {
+  var pg = this.pixelsToGrid(p);
+
+  var mx = pg.x % 6;
+  if (mx < 0) {
+    mx += 6;
   }
+
+  var my = pg.y % 2;
+  if (my < 0) {
+    my += 2;
+  }
+
+  if (this.debug) {
+    this.debug.html('x=' + mx + ' y=' + my)
+  }
+
+  var xEven = Math.floor((pg.x + 2) / 6) * 2;
+  var xOdd = Math.floor((pg.x - 1) / 6) * 2 + 1;
+  var y = Math.floor(pg.y / 2);
+
+  if (mx >= 2 && mx <= 4) {
+    return { x: xOdd, y: y };
+  }
+
+  if (mx < 1 || mx > 5) {
+    if (my > 1) {
+      return { x: xEven, y: y + 1 };
+    }
+    else {
+     return { x: xEven, y: y }; 
+    }
+  }
+
+  if (mx >= 1 && mx < 2) {
+    if (my <= 1) {
+      if ((2 - mx) > my) {
+        return { x: xEven, y: y };
+      }
+      else {
+        return { x: xOdd, y: y };
+      }
+    }
+    else {
+      if (mx > my) {
+        return { x: xOdd, y: y };
+      }
+      else {
+        return { x: xEven, y: y + 1 };
+      }
+    }
+  }
+
+  if (mx >= 4 && mx < 5) {
+    if (my <= 1) {
+      if ((mx - 4) > my) {
+        return { x: xEven, y: y };
+      }
+      else {
+        return { x: xOdd, y: y };
+      }
+    }
+    else {
+      if ((6 - mx) > my) {
+        return { x: xEven, y: y + 1 };
+      }
+      else {
+        return { x: xOdd, y: y };
+      }
+    }
+  }
+
+  return { x: xOdd, y: y };
 }
 
 Hexboard.prototype.draw = function(t) {
@@ -162,7 +218,8 @@ Hexboard.prototype.draw = function(t) {
   var bx = this.origin.x;
   var by = this.origin.y;
 
-  var active = this.mouse && this.cellOf(this.mouse.x - bx, this.mouse.y - by);
+  var mousePos = this.mouse && { x: this.mouse.x - bx, y: this.mouse.y - by };
+  var active = this.mouse && this.cellOf(mousePos);
 
   var sx = this.cellSize * rw;
   var sy = this.cellSize * rh;
@@ -175,32 +232,43 @@ Hexboard.prototype.draw = function(t) {
 
   for (var y = top; y <= bottom; ++y) {
     for (var x = left; x <= right; ++x) {
-      var o = this.originOf(x, y);
+      var o = this.originOf({ x: x, y: y });
 
       _c.fillStyle = this.cell[x][y].color || colors[x % 2 + (y % 2) * 2];
 
       if (active && active.x == x && active.y == y) {
-        _c.fillStyle = '#000000';
+        _c.fillStyle = '#7F7F7F';
       }
 
       _c.save();
-      _c.translate(bx + o.x * w, by + o.y * w);
+      _c.translate(bx + o.x, by + o.y);
       _c.beginPath();
-      _c.moveTo(0, 0);
+      _c.moveTo(-sx * 2, 0);
+      _c.lineTo(-sx, - sy);
       _c.lineTo(sx, - sy);
-      _c.lineTo(sx * 3, - sy);
-      _c.lineTo(sx * 3 + sx, 0);
-      _c.lineTo(sx * 3, sy);
+      _c.lineTo(sx * 2, 0);
       _c.lineTo(sx, sy);
-      _c.lineTo(0, 0);
+      _c.lineTo(-sx, sy);
+      _c.lineTo(-sx * 2, 0);
       _c.fill();
       _c.restore();
     }
   }
 
   if (this.mouse) {
-    _c.fillStyle = '#7F0000';
+    if (this.mouse.x < this.origin.x || this.mouse.y < this.origin.y) {
+      _c.fillStyle = '#007F00';
+    }
+    else {
+      _c.fillStyle = '#7F0000';
+    }
     _c.fillRect(this.mouse.x - 5, this.mouse.y - 5, 10, 10)
+
+    _c.strokeStyle = '#000000';
+
+    var box = this.gridDimensions(mousePos);
+
+    _c.strokeRect(bx + box.x, by + box.y, box.w, box.h);
   }
 }
 
