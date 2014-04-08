@@ -1,4 +1,4 @@
-function Hexboard(selector, size) {
+function Hexboard(selector, options) {
   this.container = $(selector);
 
   this.container.css('position', 'absolute');
@@ -24,31 +24,56 @@ function Hexboard(selector, size) {
 
   this.cell = this.generateCells(this.map.width, this.map.height);
 
-  this.cellSize = size || 64;
+  this.setAspect(options && options.aspect);
+  this.setCellSize(options && options.size);
 
   this.resize();
 
   var self = this;
 
   $(this.canvas).on('click', function(ev) {
-    return self.click(ev.pageX, ev.pageY, ev);
+    self.click(ev.pageX, ev.pageY, ev);
+
+    return false;
+  });
+
+  $(this.canvas).on('contextmenu rightclick', function(ev) {
+    self.rightclick(ev.pageX, ev.pageY, ev);
+
+    return false;
   });
 
   $(this.canvas).on('mousedown', function(ev) {
-    return self.mousedown(ev.pageX, ev.pageY, ev);
+    self.mousedown(ev.pageX, ev.pageY, ev);
+
+    return false;
   });
 
   $(this.canvas).on('mouseup', function(ev) {
-    return self.mouseup(ev.pageX, ev.pageY, ev);
+    self.mouseup(ev.pageX, ev.pageY, ev);
+
+    return false;
   });
 
   $(this.canvas).on('mousemove', function(ev) {
-    return self.mousemove(ev.pageX, ev.pageY, ev);
+    self.mousemove(ev.pageX, ev.pageY, ev);
+
+    return false;
   });
 
   this.redrawStart();
 
   this.cell[9][9].color = '#7F7F7F';
+}
+
+Hexboard.prototype.setAspect = function(ratio) {
+  this.aspect = ratio || Math.sqrt(3);
+}
+
+Hexboard.prototype.setCellSize = function(pixels) {
+  this.cellSize = pixels || 64;
+  this.gridWidth = Math.floor(this.cellSize / 2);
+  this.gridHeight = Math.floor(this.aspect * this.cellSize / 2);
 }
 
 Hexboard.prototype.redrawStart = function() { 
@@ -87,28 +112,24 @@ Hexboard.prototype.resize = function() {
   this.draw();
 }
 
-var rs = Math.sqrt(3);
-var rh = rs / 2;
-var rw = 0.5;
-
 Hexboard.prototype.gridToPixels = function(p) {
   return {
-    x: Math.floor(p.x * rw * this.cellSize),
-    y: Math.floor(p.y * rh * this.cellSize)
+    x: Math.floor(p.x * this.gridWidth),
+    y: Math.floor(p.y * this.gridHeight)
   };
 }
 
 Hexboard.prototype.pixelsToGrid = function(p) {
   return {
-    x: p.x / rw / this.cellSize,
-    y: p.y / rh / this.cellSize
+    x: p.x / this.gridWidth,
+    y: p.y / this.gridHeight
   };
 }
 
 Hexboard.prototype.originOf = function(p) {
   return this.gridToPixels({
-    x: (3 * p.x),
-    y: (2 * p.y + (p.x % 2))
+    x: 3 * p.x,
+    y: 2 * p.y + (p.x % 2)
   });
 }
 
@@ -119,8 +140,8 @@ Hexboard.prototype.gridDimensions = function(p) {
     y: Math.floor(grid.y)
   });
 
-  pixel.w = rw * this.cellSize;
-  pixel.h = rh * this.cellSize;
+  pixel.w = this.gridWidth;
+  pixel.h = this.gridHeight;
 
   return pixel;
 }
@@ -221,8 +242,8 @@ Hexboard.prototype.draw = function(t) {
   var mousePos = this.mouse && { x: this.mouse.x - bx, y: this.mouse.y - by };
   var active = this.mouse && this.cellOf(mousePos);
 
-  var sx = this.cellSize * rw;
-  var sy = this.cellSize * rh;
+  var sx = this.gridWidth;
+  var sy = this.gridHeight;
   var w = this.cellSize;
 
   var left = 0;
@@ -244,12 +265,12 @@ Hexboard.prototype.draw = function(t) {
       _c.translate(bx + o.x, by + o.y);
       _c.beginPath();
       _c.moveTo(-sx * 2, 0);
-      _c.lineTo(-sx, - sy);
-      _c.lineTo(sx, - sy);
-      _c.lineTo(sx * 2, 0);
-      _c.lineTo(sx, sy);
+      _c.lineTo(-sx, -sy);
+      _c.lineTo(sx + 1, -sy);
+      _c.lineTo(w + 1, 0);
+      _c.lineTo(sx + 1, sy);
       _c.lineTo(-sx, sy);
-      _c.lineTo(-sx * 2, 0);
+      _c.lineTo(-w, 0);
       _c.fill();
       _c.restore();
     }
@@ -273,7 +294,14 @@ Hexboard.prototype.draw = function(t) {
 }
 
 Hexboard.prototype.click = function(x, y, ev) {
+  var cell = this.cellOf({ x: x - this.origin.x, y: y - this.origin.y });
 
+  if (cell && cell.x >= 0 && cell.y >= 0 && cell.x < this.map.width && cell.y < this.map.height) {
+    this.cell[cell.x][cell.y].color = '#666666';
+  }
+}
+
+Hexboard.prototype.rightclick = function(x, y, ev) {
 }
 
 Hexboard.prototype.mousedown = function(x, y, ev) {
